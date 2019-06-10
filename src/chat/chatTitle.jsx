@@ -7,7 +7,7 @@ export default props => (
             <div className="button minimize">▬</div>
             <div className="button maximize">■</div>
         </div>
-        <div className="title">Chat</div>
+        <div className="title">{props.nome}</div>
     </div>
 )
 

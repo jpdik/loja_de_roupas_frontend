@@ -6,7 +6,7 @@ import ChatSend from './chatSend';
 
 export default props => (
     <ChatStruture>
-        <ChatTitle />
+        <ChatTitle nome="Chat" />
         <ChatList />
         <ChatSend />
     </ChatStruture>
