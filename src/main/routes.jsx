@@ -1,5 +1,5 @@
 import React from 'react'
-import { Router, Route, Redirect, hashHistory, IndexRoute } from 'react-router'
+import { Router, Route, hashHistory, IndexRoute } from 'react-router'
 import Header from '../common/template/header';
 import Dashboard from '../dashboard/dashboard';
 import Carrinho from '../carrinho/carrinho';
