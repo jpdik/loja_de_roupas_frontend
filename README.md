@@ -1,4 +1,4 @@
-# Loja de roupas (Fron)
+# Loja de roupas (Frontend)
 Projeto para construção de frontend do curso de chatbots
 
 ### Instalando project generator
@@ -553,6 +553,36 @@ export default props => (
 
 Agora sempre que carregamos a página inicial do nosso serviço de frontend, será exibido a o componente principal que representa essa página com nome de `dashboard.jsx`.
 
+## Registrando o `produtosReducer.js` na store
+
+Precisamos registrar nosso arquivo de reducer na nossa store para que ele possa ser reconhecido. Vamos no arquivo `src/main/reducers.js` para fazer isso. Basta adicionar a referência desse arquivo dentro do `combineReducers`:
+
+```diff
+import { combineReducers } from 'redux'
++ import produtosReducer from '../dashboard/produtos/produtosReducer'
+
+const rootReducer = combineReducers({
++    produtos: produtosReducer,
+})
+
+export default rootReducer
+```
+
+ficará assim;
+
+```jsx
+import { combineReducers } from 'redux'
+import produtosReducer from '../dashboard/produtos/produtosReducer'
+
+const rootReducer = combineReducers({
+    produtos: produtosReducer,
+})
+
+export default rootReducer
+```
+
+No final do arquivo `src/dashboard/produtos/produtosList.jsx`, na constante `mapStateToProps`, acessamos essa store pelo caminho `state.produtos`(definido acima) e obtemos o objeto do reducer chamado `list` (definido em `src/dashboard/produtos/produtosReducer.js`), que no final ficou `state.produtos.list` e foi mapeado para o nome list, no qual nos deu acesso dentro do componente `ProdutosList` como `this.props.list`, por isso ela se chama mapStateToProps. Seu objetivo é mapear as variáveis da store para dentro do componente.
+
 ## Criando arquivo de constantes
 
 Para que não precisemos alterar em várias páginas valores que iremos utilizar sempre (como a url do nosso serviço backend, chaves, etc.) vamos criar um arquivo que centraliza tudo, com caminho completo `src/main/consts`.
@@ -632,4 +662,444 @@ export default connect(mapStateToProps, mapDispatchToProps)(Carrinho)
 ```
 
 Da mesma forma que fissemos com o componente `ProdutoList` aqui estamos obtendo informações sobre o carrinho e mapeando os objetos para componentes e mapeando a store e as ações para o `this.props` utilizando o `connect()`. Porém essas informações são obtidas das conversas de nosso chat, então serão criadas posteriormente.
+
+### Dando funcionalidade ao Componente `chat`
+
+Em nosso template, já temos um componente que representa nosso chat. Porém não foi definido nenhuma funcionalidade para ele ainda. Ele irá recuperar todas as mensagens, nosso carrinho de comprar, e fará as novas conversas, enviando requisições para o backend em `http://localhost:3003/api/chat`.
+
+Dentro da pasta `src/chat/`, vamos criar 2 novos arquivos:
+
+- `src/chat/chatReducer.js`: este arquivo conterá o estado do nosso objeto do chat representado em na store do `redux`;
+- `src/dashboard/produtos/chatActions.js`: este arquivo conterá todas as ações realizadas nos componentes `chatSend` e `chatList`, que são componentes filhos de nosso componente principal `chat`. Ele enviará mensagens, recuperará o carrinho, e listará toda a conversa através de requisições ao backend.
+
+##### Arquivo `src/chat/chatReducer.js`
+
+Primeiramente neste arquivo, criamos o estado inicial da nossa store para o chat, que representará o estado da conversa.
+
+```jsx
+const INICIAL_STATE = {
+    user: localStorage.getItem(consts.USER_SESSION),
+    message: '',
+    messages: [],
+    cart: []
+}
+```
+
+sendo:
+
+- `user`: Sessão do usuário, que está sendo usado o `localStorage` que o navegador nos disponibiliza para armazenar informações úteis, como uma chave de sessão. Ele precisa de uma chave única para saber qual valor buscar, ela foi definida no arquivo de constantes (`src/main/consts.js`);
+- `message`: Representa o campo que o usuário escreve, que é a mensagem que será enviada;
+- `messages`: Uma lista com todo o histórico de conversa;
+- `cart`: Carrinho com produtos que o usuário solicitou;
+
+
+Depois exportamos uma função que representa as ações do reducer, ele recebe um `state` e uma `action como parâmetro:
+
+```jsx
+export default function (state = INICIAL_STATE, action){
+    switch (action.type) {
+        case 'MESSAGE_CHANGED':
+            return { ...state, message: action.payload }
+        case 'NEW_MESSAGE':
+            let messages = state.messages || [];
+            return { ...state, messages: messages.concat({ message: state.message, base: 'sent'})}
+        case 'MESSAGE_SENT':
+            return { ...state, message: '' }
+        case 'CHAT_MESSAGES_FETCHED':
+            return { ...state, messages: action.payload.data.messages }
+        case 'USER_OBTAINED':
+            localStorage.setItem(consts.USER_SESSION, action.payload.data.session_id)
+            return { ...state, messages: action.payload.data.messages }
+        case 'CART_FETCHED':
+            let cartItems = action.payload.data.context ?
+            action.payload.data.context.itens || [] : [];
+            return { ...state, cart: cartItems }
+        default:
+            return state  
+    }
+}
+```
+
+Desta vez criamos várias ações. O nome de cada uma é por nossa escolha. Vamos descrever um pouco sobre cada uma;
+
+- `MESSAGE_CHANGED`: Pega o estado, e atualiza a mensagem que será enviada. esse estado é evoluido sempre que o usuário apertar qualquer tecla;
+- `NEW_MESSAGE`: Pega a lista de mensagens, e adiciona a nova no final da lista que se já tem. O valor atribuido é o que vem da variável `message`, definido na state;
+- `MESSAGE_SENT`: Essa ação é quando uma mensagem foi enviada com sucesso para o backend, simplesmente limpamos a variável `message`, que foi a mensagem enviada pelo usuário;
+- `CHAT_MESSAGES_FETCHED`: atualiza a variável `messages` com o novo histórico que foi recebido do backend;
+- `USER_OBTAINED`: Essa ação é responsável por obter a sessão do usuário e mantê-la atualizada no localStorage. Mesmo que o usuário ainda não tenha uma sessão, ela fica repsonsável por capturar a primeira;
+- `CART_FETCHED`: Essa ação vai pegar dos dados que o backend nos enviou, o carrinho de compras do usuário, caso ele tenha solicitado algo nessa troca de mensagens;
+
+Cada ação tem sua responsabilidade, em nossas ações (no outro arquivo), podemos combiná=las, de forma a fazer todo um processo. Por exemplo:
+
+1. Quando o usuário clicar enter, chamo a ação `NEW_MESSAGE`, que dará aquela impressão, como do whatsapp, de que a mensagem está sendo enviada.
+2. Limpamos a caixa que o usuário estava digitando usando a ação `MESSAGE_SENT`.
+3. Enviamos a mensagem para o backend usando uma requisição `axios.post`
+4. Como agora temos uma resposta do backendo. Obtemos a sessão do usuário que está nessa resposta, com a ação `USER_OBTAINED`.
+5. Atualizamos nosso carrinho com a ação `CART_FETCHED`, já que nossa resposta também tem esses dados.
+6. Por ultimo, atualizamos o histório com a ação `CHAT_MESSAGES_FETCHED`, já que lá agora tem as respostas de nosso chatbot.
+
+Com isso fizemos uma combinação de ações do chatReducer como você pode ver.
+
+Nosso arquivo `src/chat/chatReducer.js` no final ficará assim:
+
+```jsx
+import consts from '../main/consts'
+
+const INICIAL_STATE = {
+    user: localStorage.getItem(consts.USER_SESSION),
+    message: '',
+    messages: [],
+    cart: []
+}
+
+export default function (state = INICIAL_STATE, action){
+    switch (action.type) {
+        case 'MESSAGE_CHANGED':
+            return { ...state, message: action.payload }
+        case 'NEW_MESSAGE':
+            let messages = state.messages || [];
+            return { ...state, messages: messages.concat({ message: state.message, base: 'sent'})}
+        case 'MESSAGE_SENT':
+            return { ...state, message: '' }
+        case 'CHAT_MESSAGES_FETCHED':
+            return { ...state, messages: action.payload.data.messages }
+        case 'USER_OBTAINED':
+            localStorage.setItem(consts.USER_SESSION, action.payload.data.session_id)
+            return { ...state, messages: action.payload.data.messages }
+        case 'CART_FETCHED':
+            let cartItems = action.payload.data.context ?
+            action.payload.data.context.itens || [] : [];
+            return { ...state, cart: cartItems }
+        default:
+            return state  
+    }
+}
+```
+
+##### Arquivo `src/chat/chatActions.js`
+
+Assim como temos várias atualizações de estados, aqui teremos uma ação para cada uma delas. Nosso arquivo ficará assim:
+
+```jsx
+import consts from '../main/consts'
+import axios from 'axios'
+
+export const changeMessage = event => ({
+    type: 'MESSAGE_CHANGED',
+    payload: event.target.value
+})
+
+export const getMessages = () => {
+    const session_id = localStorage.getItem(consts.USER_SESSION) ?
+        `/${localStorage.getItem(consts.USER_SESSION)}` : '';
+    const request = axios.get(`${consts.BASE_URL}/chat${session_id}`)
+    return {
+        type: 'CHAT_MESSAGES_FETCHED',
+        payload: request
+    }
+}
+
+export const storeUser = (request) => {
+    return {
+        type: 'USER_OBTAINED',
+        payload: request
+    }
+}
+
+export const clear = () => {
+    return { type: 'MESSAGE_SENT' }
+}
+
+export const newMessage = () => {
+    return { type: 'NEW_MESSAGE' }
+}
+
+export const getCart = () => {
+    const session_id = localStorage.getItem(consts.USER_SESSION) ?
+        `/${localStorage.getItem(consts.USER_SESSION)}` : '';
+    const request = axios.get(`${consts.BASE_URL}/chat${session_id}`)
+    return {
+        type: 'CART_FETCHED',
+        payload: request
+    }
+}
+
+export const sendMessage = (message) => {
+    const session_id = localStorage.getItem(consts.USER_SESSION);
+    return dispatch => {
+        dispatch(newMessage());
+        dispatch(clear());
+        axios.post(`${consts.BASE_URL}/chat`, { message, session_id})
+            .then(res => dispatch(storeUser(res)))
+            .then(() => dispatch(getCart()))
+            .then(() => dispatch(getMessages()))
+    }
+}
+```
+
+Você pode ver facilmente que cada uma faz uma determinada requisição ou ação, ou até mesmo uma cadeia de ações, e depois passa a resposabilidade com os dados para o reducer, que simplesmente vai atualizar aquelas variáveis. Assim nosso componente vai detectar que ouve alterações e atualizar automaticamente.
+
+
+## Registrando o `chatReducer.js` na store
+
+Assim como registramos nosso `produtosReducer` na store, também precisamos registrar nosso arquivo de reducer `chatReducer` na nossa store para que ele possa ser reconhecido. Vamos voltar novamente no arquivo `src/main/reducers.js`. Para fazer isso. basta adicionar também a referência desse arquivo dentro do `combineReducers`:
+
+```diff
+import { combineReducers } from 'redux'
+import produtosReducer from '../dashboard/produtos/produtosReducer'
++ import chatReducer from '../chat/chatReducer';
+
+const rootReducer = combineReducers({
+    produtos: produtosReducer,
++    chat: chatReducer
+})
+
+export default rootReducer
+```
+
+O novo arquivo ficará assim;
+
+```jsx
+import { combineReducers } from 'redux'
+import produtosReducer from '../dashboard/produtos/produtosReducer'
+import chatReducer from '../chat/chatReducer';
+
+const rootReducer = combineReducers({
+    produtos: produtosReducer,
+    chat: chatReducer
+})
+
+export default rootReducer
+```
+
+com isso agora já podemos pegar as ações e defini-las nos subcomponentes `ChatList` e `ChatSend` do componente principal `Chat`
+
+#### Modificando o componente `src/chat/chatList.jsx`
+
+Vamos no arquivo e fazer as seguintes alterações:
+
+```diff
+import React, { Component } from 'react'
++ import { connect } from 'react-redux'
++ import { bindActionCreators } from 'redux'
+
++ import { getMessages } from './chatActions'
+
+class ChatList extends Component {
+
+    constructor(props) {
+        super(props)
+
+        this.renderMessages = this.renderMessages.bind(this)
+    }
+
++    componentWillMount() {
++        this.props.getMessages();
++    }
+
+    renderMessages() {
++       const list = this.props.messages || [];
+
++        if (list.length > 0) {
+-           return (
++           return list.map((item, index) => (
++               <li key={index} className={`message ${item.base} appeared`}>
+-               <li className={`message received appeared`}>
+                    <div className="avatar"></div>
+                    <div className="text_wrapper">
+-                       <div className="text">teste</div>
++                       <div className="text">{item.message}</div>
+                    </div>
+                </li>
++           ))
+-           )
++       }
++       else {
++           return (
++               <li>
+
++               </li>
++           )
++       }
+
+    }
+
+    render() {
+        const messages = this.renderMessages()
+        return (
+            <ul className="messages">
+                {messages}
+            </ul>
+        )
+    }
+
+    componentDidUpdate() {
+        $('.messages').animate({ scrollTop: $('.messages').prop('scrollHeight') }, 300);
+    }
+}
+
+- export default ChatList
++ const mapStateToProps = state => ({ messages: state.chat.messages })
++ const mapDispatchToProps = dispatch => bindActionCreators({ getMessages }, dispatch)
++ export default connect(mapStateToProps, mapDispatchToProps)(ChatList)
+```
+
+no final ficará assim:
+
+```jsx
+import React, { Component } from 'react'
+import { connect } from 'react-redux'
+import { bindActionCreators } from 'redux'
+
+import { getMessages } from './chatActions'
+
+class ChatList extends Component {
+
+    constructor(props) {
+        super(props)
+
+        this.renderMessages = this.renderMessages.bind(this)
+    }
+
+    componentWillMount() {
+        this.props.getMessages();
+    }
+
+    renderMessages() {
+        const list = this.props.messages || [];
+
+        if (list.length > 0) {
+            return list.map((item, index) => (
+                <li key={index} className={`message ${item.base} appeared`}>
+                    <div className="avatar"></div>
+                    <div className="text_wrapper">
+                        <div className="text">{item.message}</div>
+                    </div>
+                </li>
+            ))
+        }
+        else {
+            return (
+                <li>
+
+                </li>
+            )
+        }
+
+    }
+
+    render() {
+        const messages = this.renderMessages()
+        return (
+            <ul className="messages">
+                {messages}
+            </ul>
+        )
+    }
+
+    componentDidUpdate() {
+        $('.messages').animate({ scrollTop: $('.messages').prop('scrollHeight') }, 300);
+    }
+}
+
+const mapStateToProps = state => ({ messages: state.chat.messages })
+const mapDispatchToProps = dispatch => bindActionCreators({ getMessages }, dispatch)
+export default connect(mapStateToProps, mapDispatchToProps)(ChatList)
+```
+
+Assim estamos obtendo ligando as `messages` do reducer `chat` do arquivo `src/chat/chatReducer.js` a este subcomponente `ChatList`, podendo agora ter o histório de conversas.
+
+#### Modificando o componente `src/chat/chatSend.jsx`
+
+Vamos no arquivo e fazer as seguintes alterações:
+
+```diff
+import React, { Component } from 'react'
++ import { connect } from 'react-redux'
++ import { bindActionCreators } from 'redux'
+
++ import { changeMessage, sendMessage } from './chatActions'
+class ChatSend extends Component {
+
+    constructor(props) {
+        super(props)
+        this.keyHandler = this.keyHandler.bind(this)
+    }
+
+    keyHandler(e) {
++       const { message, sendMessage } = this.props;
+        if (e.key === 'Enter') {
+-           console.log('enviou')
++           sendMessage(message);
+        }
+    }
+
+    render() {
++       const { message, changeMessage, sendMessage } = this.props;
+        return (
+            <div className="bottom_wrapper clearfix">
+                <div className="message_input_wrapper">
+-                    <input className="message_input" placeholder="Digite sua mensagem aqui..." onKeyUp={this.keyHandler} />
++                    <input className="message_input" placeholder="Digite sua mensagem aqui..." onKeyUp={this.keyHandler} onChange={changeMessage} value={message}/>
+                </div>
+-               <div className="send_message" onClick={() => console.log('teste')}>
++               <div className="send_message" onClick={() => sendMessage(message)}>
+                    <div className="icon"></div>
+                    <div className="text">Enviar</div>
+                </div>
+            </div>
+        )
+    }
+}
+
+- export default ChatSend
++ const mapStateToProps = state => ({ message: state.chat.message })
++ const mapDispatchToProps = dispatch => bindActionCreators({ changeMessage, sendMessage }, dispatch)
++ export default connect(mapStateToProps, mapDispatchToProps)(ChatSend)
+```
+
+no final ficará assim:
+
+```jsx
+import React, { Component } from 'react'
+import { connect } from 'react-redux'
+import { bindActionCreators } from 'redux'
+
+import { changeMessage, sendMessage } from './chatActions'
+class ChatSend extends Component {
+
+    constructor(props) {
+        super(props)
+        this.keyHandler = this.keyHandler.bind(this)
+    }
+
+    keyHandler(e) {
+        const { message, sendMessage } = this.props;
+        if (e.key === 'Enter') {
+            sendMessage(message);
+        }
+    }
+
+    render() {
+        const { message, changeMessage, sendMessage } = this.props;
+        return (
+            <div className="bottom_wrapper clearfix">
+                <div className="message_input_wrapper">
+                    <input className="message_input" placeholder="Digite sua mensagem aqui..." onKeyUp={this.keyHandler} onChange={changeMessage} value={message}/>
+                </div>
+                <div className="send_message" onClick={() => sendMessage(message)}>
+                    <div className="icon"></div>
+                    <div className="text">Enviar</div>
+                </div>
+            </div>
+        )
+    }
+}
+
+const mapStateToProps = state => ({ message: state.chat.message })
+const mapDispatchToProps = dispatch => bindActionCreators({ changeMessage, sendMessage }, dispatch)
+export default connect(mapStateToProps, mapDispatchToProps)(ChatSend)
+```
+
+Agora temos todos os nosso componentes se comunicando com o reducer, assim, nosso chat já funciona, já obtém o histório de conversas, ja atualiza nosso carrinho de compras também.
 
