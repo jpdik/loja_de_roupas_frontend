@@ -13,7 +13,7 @@ export default function (state = INICIAL_STATE, action){
             return { ...state, message: action.payload }
         case 'NEW_MESSAGE':
             let messages = state.messages || [];
-            return { ...state, messages: messages.concat({ message: state.message, base: 'sent'})}
+            return { ...state, messages: messages.concat({ message: action.payload || state.message, base: 'sent'})}
         case 'MESSAGE_SENT':
             return { ...state, message: '' }
         case 'CHAT_MESSAGES_FETCHED':

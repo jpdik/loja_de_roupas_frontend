@@ -2,6 +2,15 @@
     box-sizing: border-box;
 }
 
+.option-link{
+    text-decoration: underline;
+}
+
+.option-link:hover{
+    color: blue;
+    cursor: pointer;
+}
+
 .chat_window {
     position: fixed;
     bottom: 0;

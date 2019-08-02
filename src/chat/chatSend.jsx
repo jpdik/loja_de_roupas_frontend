@@ -12,7 +12,7 @@ class ChatSend extends Component {
 
     keyHandler(e) {
         const { message, sendMessage } = this.props;
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && message.length > 0) {
             sendMessage(message);
         }
     }
@@ -24,7 +24,7 @@ class ChatSend extends Component {
                 <div className="message_input_wrapper">
                     <input className="message_input" placeholder="Digite sua mensagem aqui..." onKeyUp={this.keyHandler} onChange={changeMessage} value={message}/>
                 </div>
-                <div className="send_message" onClick={() => sendMessage(message)}>
+                <div className="send_message" onClick={() => message.length > 0 ? sendMessage(message) : ''}>
                     <div className="icon"></div>
                     <div className="text">Enviar</div>
                 </div>

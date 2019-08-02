@@ -9,7 +9,19 @@ export const changeMessage = event => ({
 export const getMessages = () => {
     const session_id = localStorage.getItem(consts.USER_SESSION) ?
         `/${localStorage.getItem(consts.USER_SESSION)}` : '';
-    const request = axios.get(`${consts.BASE_URL}/chat${session_id}`)
+    return dispatch => {
+        axios.get(`${consts.BASE_URL}/chat${session_id}`)
+            .then(res => {
+                if(res.data.length <= 0)
+                    dispatch(sendMessage(""))
+                else
+                    dispatch(messages_fetched(res))
+            })
+            .catch(err => dispatch(sendMessage("")))
+    }
+}
+
+const messages_fetched = (request) => {
     return {
         type: 'CHAT_MESSAGES_FETCHED',
         payload: request
@@ -27,8 +39,8 @@ export const clear = () => {
     return { type: 'MESSAGE_SENT' }
 }
 
-export const newMessage = () => {
-    return { type: 'NEW_MESSAGE' }
+export const newMessage = (message) => {
+    return { type: 'NEW_MESSAGE', payload: message }
 }
 
 export const getCart = () => {
@@ -44,9 +56,9 @@ export const getCart = () => {
 export const sendMessage = (message) => {
     const session_id = localStorage.getItem(consts.USER_SESSION);
     return dispatch => {
-        dispatch(newMessage());
+        dispatch(newMessage(message));
         dispatch(clear());
-        axios.post(`${consts.BASE_URL}/chat`, { message, session_id})
+        axios.post(`${consts.BASE_URL}/chat`, { message, session_id })
             .then(res => dispatch(storeUser(res)))
             .then(() => dispatch(getCart()))
             .then(() => dispatch(getMessages()))
