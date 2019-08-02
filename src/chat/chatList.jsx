@@ -26,7 +26,7 @@ class ChatList extends Component {
                     <div className="text_wrapper">
                         <div className="text">
                             {item.message}
-
+                            {item.description ? (<p className="message-description">{item.description}</p>) : ''}
                             {
                                 item.type == 'option' ?
                                 (
