@@ -1,1 +1,1 @@
-web: http-server -p $PORT
+web: superstatic public --port $PORT
