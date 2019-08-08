@@ -1,1 +1,0 @@
-web: superstatic public --port $PORT
