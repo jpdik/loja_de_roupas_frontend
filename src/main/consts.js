@@ -1,4 +1,4 @@
 export default{
-    BASE_URL: "http://localhost:3003/api",
+    BASE_URL: "https://lojajp-backend.herokuapp.com/api",
     USER_SESSION: "user_id",
 } 
