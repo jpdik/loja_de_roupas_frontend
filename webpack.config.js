@@ -5,11 +5,13 @@ module.exports = {
     entry: './src/index.jsx',
     output: {
         path: __dirname + '/public',
-        filename: './app.js'
+        filename: './app.js',
+        publicPath: '/'
     },
     devServer: {
         port: 8080,
         contentBase: './public',
+        historyApiFallback: true,
     },
     resolve: {
         extensions: ['*', '.js', '.jsx'],

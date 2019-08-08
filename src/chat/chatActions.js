@@ -53,10 +53,10 @@ export const getCart = () => {
     }
 }
 
-export const sendMessage = (message) => {
+export const sendMessage = (message, label="") => {
     const session_id = localStorage.getItem(consts.USER_SESSION);
     return dispatch => {
-        dispatch(newMessage(message));
+        dispatch(newMessage(label ? label : message));
         dispatch(clear());
         axios.post(`${consts.BASE_URL}/chat`, { message, session_id })
             .then(res => dispatch(storeUser(res)))

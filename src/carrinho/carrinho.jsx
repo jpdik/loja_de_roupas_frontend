@@ -1,14 +1,6 @@
 import React, { Component } from 'react'
-import { bindActionCreators } from 'redux'
-import { connect } from 'react-redux'
-
-import { getCart } from '../chat/chatActions'
 
 class Carrinho extends Component {
-
-    componentWillMount(){
-        this.props.getCart();
-    }
 
     renderCart() {
         const list = this.props.cart || [];
@@ -49,6 +41,4 @@ class Carrinho extends Component {
 
 }
 
-const mapStateToProps = state => ({ cart: state.chat.cart })
-const mapDispatchToProps = dispatch => bindActionCreators({ getCart }, dispatch)
-export default connect(mapStateToProps, mapDispatchToProps)(Carrinho)
+export default Carrinho
