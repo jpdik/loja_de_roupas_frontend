@@ -44,8 +44,6 @@
     "webpack-dev-server": "^3.7.1"
   },
   "dependencies": {
-    "express": "^4.17.1",
-    "express-favicon": "^2.0.1",
-    "path": "^0.12.7"
+    "serve": "^11.0.2"
   }
 }
